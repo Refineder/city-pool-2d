@@ -1,4 +1,3 @@
-// All PixiJS drawing: the table, ball sprites, aim line and power bar.
 import { Container, Graphics, Text, Sprite, Rectangle, FillGradient } from 'pixi.js';
 import { CANVAS_W, CANVAS_H, CUSHION, TABLE_W, TABLE_H, BALL_R, POCKET_R, BALL_COLORS } from './config.js';
 import { pocketPositions } from './physics.js';
@@ -6,7 +5,6 @@ import { pocketPositions } from './physics.js';
 export function drawTable() {
   const g = new Graphics();
 
-  // outer wooden frame with warm gradient + top bevel highlight
   const wood = new FillGradient({
     type: 'linear', start: { x: 0, y: 0 }, end: { x: 0, y: 1 },
     colorStops: [{ offset: 0, color: 0x8a5a30 }, { offset: 0.5, color: 0x5c3b1d }, { offset: 1, color: 0x36230f }],
@@ -15,10 +13,8 @@ export function drawTable() {
   g.roundRect(0, 0, CANVAS_W, CANVAS_H, 16).fill(wood);
   g.roundRect(3, 3, CANVAS_W - 6, CANVAS_H - 6, 13).stroke({ width: 2, color: 0xffe2b0, alpha: 0.18 });
 
-  // cushion frame (darker inner border ring around the cloth)
   g.rect(CUSHION - 8, CUSHION - 8, TABLE_W + 16, TABLE_H + 16).fill(0x1b6e3a);
 
-  // cloth with a soft lit centre
   const cloth = new FillGradient({
     type: 'radial',
     innerCenter: { x: 0.5, y: 0.42 }, innerRadius: 0.04,
@@ -27,11 +23,9 @@ export function drawTable() {
     textureSpace: 'local',
   });
   g.rect(CUSHION, CUSHION, TABLE_W, TABLE_H).fill(cloth);
-  // inner shadow cast by the rails onto the cloth
   g.rect(CUSHION, CUSHION, TABLE_W, TABLE_H).stroke({ width: 8, color: 0x000000, alpha: 0.18 });
   g.rect(CUSHION + 2, CUSHION + 2, TABLE_W - 4, TABLE_H - 4).stroke({ width: 2, color: 0x000000, alpha: 0.12 });
 
-  // diamond sights
   const dots = [];
   for (const f of [0.25, 0.5, 0.75]) {
     dots.push([CUSHION + TABLE_W * f, CUSHION / 2], [CUSHION + TABLE_W * f, CANVAS_H - CUSHION / 2]);
@@ -42,7 +36,6 @@ export function drawTable() {
     g.circle(x, y, 3.5).stroke({ width: 1, color: 0x4a3a1f, alpha: 0.5 });
   }
 
-  // pockets: brass ring + recessed dark hole
   for (const p of pocketPositions()) {
     g.circle(p.x, p.y, POCKET_R + 6).fill({ color: 0x000000, alpha: 0.4 });
     g.circle(p.x, p.y, POCKET_R + 3).fill(0x4a3a1f);
@@ -53,31 +46,34 @@ export function drawTable() {
     });
     g.circle(p.x, p.y, POCKET_R).fill(hole);
   }
+
   return g;
 }
 
-// The painted face (colour + stripe + number) — this is what spins as the ball rolls.
 function faceGraphics(number, color) {
   const g = new Container();
   const isCue = number === 0;
   const isStripe = number >= 9;
+
   g.addChild(new Graphics().circle(0, 0, BALL_R).fill(isCue || isStripe ? 0xffffff : color));
+
   if (isStripe) {
     const band = new Graphics().rect(-BALL_R, -BALL_R * 0.5, BALL_R * 2, BALL_R).fill(color);
     const mask = new Graphics().circle(0, 0, BALL_R).fill(0xffffff);
     g.addChild(band, mask);
     band.mask = mask;
   }
+
   if (!isCue) {
     g.addChild(new Graphics().circle(0, 0, BALL_R * 0.48).fill(0xfbf7ec));
-    const t = new Text({ text: String(number), style: { fontFamily: 'Arial, sans-serif', fontSize: 9, fontWeight: 'bold', fill: 0x111111 } });
-    t.anchor.set(0.5);
-    g.addChild(t);
+    const label = new Text({ text: String(number), style: { fontFamily: 'Arial, sans-serif', fontSize: 9, fontWeight: 'bold', fill: 0x111111 } });
+    label.anchor.set(0.5);
+    g.addChild(label);
   }
+
   return g;
 }
 
-// The fixed shading drawn on top (does NOT spin). Dark, uniform — no ball stands out.
 function overlayGraphics() {
   const g = new Container();
   const shade = new FillGradient({
@@ -98,20 +94,22 @@ function overlayGraphics() {
   return g;
 }
 
-// Bake each ball part to a texture ONCE — runtime then draws cheap sprites instead of
-// re-tessellating graphics and applying a mask per ball every frame.
 let TEX = null;
+
 export function initBallTextures(renderer) {
   if (TEX) return;
+
   const bake = (node, half) => {
-    const t = renderer.generateTexture({ target: node, frame: new Rectangle(-half, -half, half * 2, half * 2), resolution: 2, antialias: true });
+    const texture = renderer.generateTexture({ target: node, frame: new Rectangle(-half, -half, half * 2, half * 2), resolution: 2, antialias: true });
     node.destroy({ children: true });
-    return t;
+    return texture;
   };
+
   const R = BALL_R + 2;
   const faces = new Map();
   for (let n = 0; n <= 15; n++) faces.set(n, bake(faceGraphics(n, BALL_COLORS[n]), R));
   const shadow = new Graphics().ellipse(0, 0, BALL_R * 1.05, BALL_R * 0.9).fill({ color: 0x000000, alpha: 0.3 });
+
   TEX = {
     faces,
     overlay: bake(overlayGraphics(), R),
@@ -121,16 +119,18 @@ export function initBallTextures(renderer) {
 
 export function buildBallVisual(ball) {
   const c = new Container();
-  const shadow = new Sprite(TEX.shadow); shadow.anchor.set(0.5); shadow.position.set(2.5, 3.5);
-  const face = new Sprite(TEX.faces.get(ball.number)); face.anchor.set(0.5);
-  const overlay = new Sprite(TEX.overlay); overlay.anchor.set(0.5);
+  const shadow = new Sprite(TEX.shadow);
+  shadow.anchor.set(0.5);
+  shadow.position.set(2.5, 3.5);
+  const face = new Sprite(TEX.faces.get(ball.number));
+  face.anchor.set(0.5);
+  const overlay = new Sprite(TEX.overlay);
+  overlay.anchor.set(0.5);
   c.addChild(shadow, face, overlay);
-  c.spin = face; // only the painted face rotates
+  c.spin = face;
   return c;
 }
 
-// Predicted path: a faint line that reflects off the rails, scaled to how
-// far the cue ball would actually travel at the current power.
 export function drawAim(g, cue, mx, my, power = 1) {
   g.clear();
   g.moveTo(cue.x, cue.y).lineTo(mx, my).stroke({ width: 1, color: 0xffffff, alpha: 0.25 });
@@ -150,6 +150,7 @@ export function drawAim(g, cue, mx, my, power = 1) {
     else if (dy < 0) t = Math.min(t, (minY - y) / dy);
     t = Math.min(t, remaining);
     if (!isFinite(t) || t <= 0) break;
+
     const nx = x + dx * t, ny = y + dy * t;
     g.lineTo(nx, ny);
     remaining -= t;

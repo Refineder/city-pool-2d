@@ -1,6 +1,9 @@
 {
   "name": "pool",
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "A 2D pool game for the browser, with peer-to-peer online 1v1 multiplayer.",
+  "author": "Arel Kair",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": {

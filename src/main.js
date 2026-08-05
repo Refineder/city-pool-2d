@@ -41,6 +41,7 @@ async function main() {
 
   initBallTextures(app.renderer);
   applyStatic();
+
   const markLang = () => document.querySelectorAll('#lang-seg .seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.lang === getLang()));
   document.querySelectorAll('#lang-seg .seg-btn').forEach((b) => {
     b.onclick = () => { audio.resume(); audio.uiClick(); setLang(b.dataset.lang); markLang(); refreshHud(); ui.updateTurn(game.mode, game.turn === game.myPlayer); };
@@ -50,8 +51,6 @@ async function main() {
   setupRack();
   setupInput();
 
-  // physics on a timer so the match keeps running while the tab is in the background;
-  // the Pixi ticker only renders (it pauses when hidden, which is fine — nobody's watching).
   lastPhysics = performance.now();
   setInterval(physicsLoop, 1000 / 60);
   app.ticker.add(renderFrame);
@@ -67,7 +66,7 @@ function physicsLoop() {
   let n = Math.round((now - lastPhysics) / (1000 / 60));
   if (n < 1) return;
   lastPhysics = now;
-  if (n > 150) n = 150; // cap catch-up after a long time hidden
+  if (n > 150) n = 150;
   for (let i = 0; i < n; i++) physicsFrame();
 }
 
@@ -75,20 +74,28 @@ function physicsFrame() {
   if (game.mode === 'guest') return;
   const audible = !document.hidden;
   const { potted, hits } = step(game.balls);
+
   for (const h of hits) {
-    if (h.type === 'ball') { if (audible) audio.ballHit(h.speed); game.sfxBall = Math.max(game.sfxBall, h.speed); }
-    else { if (audible) audio.railHit(h.speed); game.sfxRail = Math.max(game.sfxRail, h.speed); }
+    if (h.type === 'ball') {
+      if (audible) audio.ballHit(h.speed);
+      game.sfxBall = Math.max(game.sfxBall, h.speed);
+    } else {
+      if (audible) audio.railHit(h.speed);
+      game.sfxRail = Math.max(game.sfxRail, h.speed);
+    }
   }
+
   for (const b of potted) {
     if (audible) audio.pocket();
     game.sfxPocket++;
     game.shotPotted.push(b.number);
     if (b.number === 0) game.cueFoul = true;
   }
+
   if (potted.length) refreshHud();
   if (game.shooting && allStopped(game.balls)) {
     if (game.mode === 'host') resolveTurn();
-    else { game.shooting = false; refreshHud(); } // solo: free play
+    else resolveSoloShot();
   }
   if (game.mode === 'host' && game.started && game.net && (++frame % 2 === 0)) sendState();
 }
@@ -99,7 +106,6 @@ function renderFrame() {
     spr.visible = !ball.potted;
     if (ball.potted) continue;
     if (guest) {
-      // smoothly interpolate toward the last received position so motion looks 60fps-fluid
       ball.x += ((ball.tx ?? ball.x) - ball.x) * 0.35;
       ball.y += ((ball.ty ?? ball.y) - ball.y) * 0.35;
     } else {
@@ -116,15 +122,25 @@ function setupRack() {
   game.cue = game.balls.find((b) => b.number === 0);
   game.sprites = new Map();
   game.byNumber = new Map();
+
   for (const b of game.balls) {
     const v = buildBallVisual(b);
     game.sprites.set(b, v);
     game.byNumber.set(b.number, { ball: b, spr: v });
     ballLayer.addChild(v);
   }
-  for (const b of game.balls) { b.tx = b.x; b.ty = b.y; }
-  game.shots = 0; game.shooting = false; game.shotPotted = []; game.cueFoul = false;
-  game.gameOver = false; game.winner = null; game.ballInHand = false;
+  for (const b of game.balls) {
+    b.tx = b.x;
+    b.ty = b.y;
+  }
+
+  game.shots = 0;
+  game.shooting = false;
+  game.shotPotted = [];
+  game.cueFoul = false;
+  game.gameOver = false;
+  game.winner = null;
+  game.ballInHand = false;
   refreshHud();
 }
 
@@ -148,11 +164,9 @@ function canShoot() {
   if (game.mode === 'guest') return !game.cuePotted && game.turn === game.myPlayer;
   if (game.cue.potted) return false;
   if (game.mode === 'solo') return true;
-  return game.turn === game.myPlayer; // host
+  return game.turn === game.myPlayer;
 }
 
-// the player whose foul it was, or the one about to shoot after a scratch,
-// gets to drop the cue ball anywhere on the table before shooting
 function canPlaceCue() {
   if (game.gameOver || !game.ballInHand) return false;
   const stopped = game.mode === 'guest' ? game.settled : allStopped(game.balls);
@@ -163,14 +177,18 @@ function canPlaceCue() {
 
 function applyCuePlacement(x, y) {
   placeCue(game.cue, game.balls, x, y);
-  game.cue.tx = game.cue.x; game.cue.ty = game.cue.y;
+  game.cue.tx = game.cue.x;
+  game.cue.ty = game.cue.y;
   game.ballInHand = false;
   ui.el('hint').textContent = t('aimHint');
   ui.showHint();
 }
 
 function placeCueAt(x, y) {
-  if (game.mode === 'guest') { game.net.send({ type: 'place', x, y }); return; }
+  if (game.mode === 'guest') {
+    game.net.send({ type: 'place', x, y });
+    return;
+  }
   applyCuePlacement(x, y);
   if (game.mode === 'host') sendState();
 }
@@ -184,6 +202,18 @@ function doShoot(dx, dy, power) {
   game.cueFoul = false;
   refreshHud();
   ui.hideHint();
+}
+
+function resolveSoloShot() {
+  game.shooting = false;
+  if (game.cueFoul || game.shotPotted.includes(0)) {
+    game.ballInHand = true;
+    ui.el('hint').textContent = t('placeCueHint');
+    ui.showHint();
+  }
+  game.shotPotted = [];
+  game.cueFoul = false;
+  refreshHud();
 }
 
 function resolveTurn() {
@@ -200,17 +230,20 @@ function resolveTurn() {
     endGame(cleared && !cueFoul ? shooter : other(shooter));
     return;
   }
+
   const keep = mineCount > 0 && !cueFoul;
   if (!keep) game.turn = other(shooter);
   game.ballInHand = cueFoul;
-  game.shotPotted = []; game.cueFoul = false;
+  game.shotPotted = [];
+  game.cueFoul = false;
   refreshHud();
   announceTurn();
   sendState();
 }
 
 function endGame(winner) {
-  game.gameOver = true; game.winner = winner;
+  game.gameOver = true;
+  game.winner = winner;
   refreshHud();
   showEndBanner();
   sendState();
@@ -240,43 +273,70 @@ function announceGroupAndTurn() {
   queueBanner(mg === 'stripes' ? t('mustStripes') : t('mustSolids'));
   queueBanner(game.turn === game.myPlayer ? t('yourTurn') : t('rivalTurn'));
   ui.updateTurn(game.mode, game.turn === game.myPlayer);
-  if (game.turn === game.myPlayer) { audio.turnChime(); maybeNotifyTurn(); }
+  if (game.turn === game.myPlayer) {
+    audio.turnChime();
+    maybeNotifyTurn();
+  }
   refreshHud();
 }
 
-function queueBanner(text) { bannerQ.push(text); if (!bannerBusy) nextBanner(); }
+function queueBanner(text) {
+  bannerQ.push(text);
+  if (!bannerBusy) nextBanner();
+}
+
 function nextBanner() {
-  if (!bannerQ.length) { bannerBusy = false; return; }
+  if (!bannerQ.length) {
+    bannerBusy = false;
+    return;
+  }
   bannerBusy = true;
   ui.banner(bannerQ.shift());
   setTimeout(nextBanner, 2500);
 }
-function stopBanners() { bannerQ = []; bannerBusy = false; ui.clearBanner(); }
+
+function stopBanners() {
+  bannerQ = [];
+  bannerBusy = false;
+  ui.clearBanner();
+}
 
 function maybeNotifyTurn() {
   if (game.mode === 'solo' || game.turn !== game.myPlayer || !document.hidden) return;
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   try {
     new Notification('Pool', { body: t('notifTurnBody'), tag: 'pool-turn', renotify: true });
-  } catch { /* ignore */ }
+  } catch {}
 }
 
 function maybeAskNotifications() {
   return new Promise((resolve) => {
-    if (!('Notification' in window) || Notification.permission !== 'default') { resolve(); return; }
+    if (!('Notification' in window) || Notification.permission !== 'default') {
+      resolve();
+      return;
+    }
     const m = ui.el('notif-modal'), a = ui.el('notif-accept'), r = ui.el('notif-reject');
     m.classList.add('show');
-    const close = () => { m.classList.remove('show'); a.onclick = null; r.onclick = null; };
-    // requestPermission must run inside the click handler, or browsers ignore it (lost user gesture)
+    const close = () => {
+      m.classList.remove('show');
+      a.onclick = null;
+      r.onclick = null;
+    };
     a.onclick = async () => {
       close();
       try {
         const perm = await Notification.requestPermission();
-        if (perm === 'granted') { audio.notify(); ui.toast(t('notifEnabled')); }
-      } catch { /* ignore */ }
+        if (perm === 'granted') {
+          audio.notify();
+          ui.toast(t('notifEnabled'));
+        }
+      } catch {}
       resolve();
     };
-    r.onclick = () => { close(); resolve(); };
+    r.onclick = () => {
+      close();
+      resolve();
+    };
   });
 }
 
@@ -288,25 +348,40 @@ function sendState() {
     sfx: { b: game.sfxBall, r: game.sfxRail, p: game.sfxPocket },
     balls: game.balls.map((b) => ({ n: b.number, x: b.x, y: b.y, r: game.sprites.get(b).spin.rotation, p: b.potted })),
   });
-  game.sfxBall = 0; game.sfxRail = 0; game.sfxPocket = 0;
+  game.sfxBall = 0;
+  game.sfxRail = 0;
+  game.sfxPocket = 0;
 }
 
 function applyState(m) {
   const prevTurn = game.turn, prevOver = game.gameOver;
-  game.turn = m.turn; game.settled = m.settled; game.cuePotted = m.cuePotted; game.shots = m.shots;
-  game.groups = m.groups; game.gameOver = m.gameOver; game.winner = m.winner; game.ballInHand = m.ballInHand;
+  game.turn = m.turn;
+  game.settled = m.settled;
+  game.cuePotted = m.cuePotted;
+  game.shots = m.shots;
+  game.groups = m.groups;
+  game.gameOver = m.gameOver;
+  game.winner = m.winner;
+  game.ballInHand = m.ballInHand;
+
   for (const bs of m.balls) {
     const e = game.byNumber.get(bs.n);
     if (!e) continue;
-    e.ball.tx = bs.x; e.ball.ty = bs.y; e.ball.potted = bs.p; e.spr.spin.rotation = bs.r;
+    e.ball.tx = bs.x;
+    e.ball.ty = bs.y;
+    e.ball.potted = bs.p;
+    e.spr.spin.rotation = bs.r;
   }
+
   if (m.sfx && !document.hidden) {
     if (m.sfx.b > 0) audio.ballHit(m.sfx.b);
     if (m.sfx.r > 0) audio.railHit(m.sfx.r);
     for (let i = 0; i < m.sfx.p; i++) audio.pocket();
   }
+
   refreshHud();
   ui.updateTurn(game.mode, game.turn === game.myPlayer);
+
   if (m.turn !== prevTurn) {
     if (game.ballInHand && game.turn === game.myPlayer) {
       queueBanner(t('ballInHandYou'));
@@ -318,23 +393,29 @@ function applyState(m) {
     if (game.turn === game.myPlayer) audio.turnChime();
     maybeNotifyTurn();
   }
+
   if (game.gameOver && !prevOver) showEndBanner();
 }
 
 function setupInput() {
   let dragStart = null;
+
   const pos = (e) => {
     const r = app.canvas.getBoundingClientRect();
     return { x: (e.clientX - r.left) * (app.canvas.width / r.width), y: (e.clientY - r.top) * (app.canvas.height / r.height) };
   };
+
   app.canvas.addEventListener('pointerdown', (e) => {
-    if (!document.hasFocus()) return; // ignore clicks that just refocus the window
+    if (!document.hasFocus()) return;
     const p = pos(e);
-    if (canPlaceCue()) { placeCueAt(p.x, p.y); return; }
+    if (canPlaceCue()) {
+      placeCueAt(p.x, p.y);
+      return;
+    }
     if (!canShoot()) return;
-    // grab anywhere on the table and drag to aim — a plain click still won't shoot (see pointerup)
     dragStart = p;
   });
+
   window.addEventListener('pointermove', (e) => {
     if (!dragStart) return;
     const p = pos(e);
@@ -343,10 +424,10 @@ function setupInput() {
     drawAim(aimLine, game.cue, p.x, p.y, power);
     drawPower(powerBar, powerLabel, power);
   });
+
   window.addEventListener('pointerup', (e) => {
     if (!dragStart) return;
     const p = pos(e);
-    // require an actual DRAG (movement from where you pressed) — a plain click never shoots
     const dragged = Math.hypot(p.x - dragStart.x, p.y - dragStart.y);
     if (canShoot() && dragged > MIN_DRAG) {
       const dx = game.cue.x - p.x, dy = game.cue.y - p.y;
@@ -356,12 +437,17 @@ function setupInput() {
       else doShoot(dx, dy, power);
     }
     dragStart = null;
-    aimLine.clear(); powerBar.clear(); powerLabel.visible = false;
+    aimLine.clear();
+    powerBar.clear();
+    powerLabel.visible = false;
   });
 }
 
 function closeNet() {
-  if (game.net) { game.net.close(); game.net = null; }
+  if (game.net) {
+    game.net.close();
+    game.net = null;
+  }
   game.started = false;
 }
 
@@ -377,13 +463,20 @@ function leaveGame() {
 function onMessage(m) {
   if (m.type === 'start' && game.mode === 'guest') {
     setupRack();
-    game.groups = m.groups; game.turn = m.turn; game.started = true; game.gameOver = false;
+    game.groups = m.groups;
+    game.turn = m.turn;
+    game.started = true;
+    game.gameOver = false;
     ui.enterGame();
     maybeAskNotifications().then(announceGroupAndTurn);
-  } else if (m.type === 'state' && game.mode === 'guest') applyState(m);
-  else if (m.type === 'shoot' && game.mode === 'host' && game.turn === 2 && !game.gameOver) doShoot(m.dx, m.dy, m.power);
-  else if (m.type === 'place' && game.mode === 'host' && game.turn === 2 && game.ballInHand) { applyCuePlacement(m.x, m.y); sendState(); }
-  else if (m.type === 'restart' && game.mode === 'host') {
+  } else if (m.type === 'state' && game.mode === 'guest') {
+    applyState(m);
+  } else if (m.type === 'shoot' && game.mode === 'host' && game.turn === 2 && !game.gameOver) {
+    doShoot(m.dx, m.dy, m.power);
+  } else if (m.type === 'place' && game.mode === 'host' && game.turn === 2 && game.ballInHand) {
+    applyCuePlacement(m.x, m.y);
+    sendState();
+  } else if (m.type === 'restart' && game.mode === 'host') {
     setupRack();
     stopBanners();
     newMatchGroups();
@@ -401,7 +494,8 @@ function newMatchGroups() {
 
 function startHost() {
   closeNet();
-  game.mode = 'host'; game.myPlayer = 1;
+  game.mode = 'host';
+  game.myPlayer = 1;
   ui.el('host-code').textContent = '····';
   game.net = host({
     ready: (code) => { ui.el('host-code').textContent = code; },
@@ -418,15 +512,19 @@ function startHost() {
     },
     message: onMessage,
     left: () => ui.toast(t('rivalLeft')),
-    error: () => { /* host id taken — rare; user can re-open */ },
+    error: () => {},
   });
 }
 
 function startJoin() {
   const code = ui.el('join-code').value.trim().toUpperCase();
-  if (code.length < 4) { ui.setStatus('join-status', t('code4'), true); return; }
+  if (code.length < 4) {
+    ui.setStatus('join-status', t('code4'), true);
+    return;
+  }
   closeNet();
-  game.mode = 'guest'; game.myPlayer = 2;
+  game.mode = 'guest';
+  game.myPlayer = 2;
   ui.setStatus('join-status', t('connecting'));
   game.net = join(code, {
     connected: () => ui.setStatus('join-status', t('waitingHost')),
@@ -451,11 +549,16 @@ function wireMenu() {
   click('btn-connect', startJoin);
 
   ui.el('btn-mute').onclick = () => { audio.resume(); audio.setMuted(!audio.isMuted()); ui.setMuteIcon(audio.isMuted()); audio.uiClick(); };
+
   ui.el('btn-restart').onclick = async () => {
-    audio.resume(); audio.uiClick();
+    audio.resume();
+    audio.uiClick();
     const ok = await ui.confirm(t('confirmRestart'));
     if (!ok) return;
-    if (game.mode === 'guest') { game.net.send({ type: 'restart' }); return; }
+    if (game.mode === 'guest') {
+      game.net.send({ type: 'restart' });
+      return;
+    }
     setupRack();
     stopBanners();
     if (game.mode === 'host') {
@@ -466,8 +569,10 @@ function wireMenu() {
     }
     ui.showHint();
   };
+
   ui.el('btn-menu').onclick = async () => {
-    audio.resume(); audio.uiClick();
+    audio.resume();
+    audio.uiClick();
     const ok = await ui.confirm(t('confirmExit'));
     if (!ok) return;
     leaveGame();

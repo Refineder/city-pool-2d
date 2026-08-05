@@ -1,4 +1,3 @@
-// Tiny i18n: a string table + helpers. Language persists in localStorage.
 const STR = {
   es: {
     play: 'Jugar', settings: 'Ajustes', quit: 'Salir',
@@ -62,8 +61,13 @@ const STR = {
 
 let lang = localStorage.getItem('pool-lang') || 'en';
 
-export function getLang() { return lang; }
-export function t(key) { return (STR[lang] && STR[lang][key]) || STR.es[key] || key; }
+export function getLang() {
+  return lang;
+}
+
+export function t(key) {
+  return (STR[lang] && STR[lang][key]) || STR.es[key] || key;
+}
 
 export function setLang(l) {
   lang = STR[l] ? l : 'es';
@@ -71,7 +75,6 @@ export function setLang(l) {
   applyStatic();
 }
 
-// translate every element tagged with data-i18n / data-i18n-ph
 export function applyStatic() {
   document.documentElement.lang = lang;
   document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
