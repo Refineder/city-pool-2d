@@ -1,4 +1,6 @@
 # Pool
+**[Play now](https://pool-arelkair.vercel.app/)**
+
 ![Gameplay screenshot](docs/screenshot.png)
 A 2D pool game for the browser, with online 1v1 multiplayer.
 ## How to play
