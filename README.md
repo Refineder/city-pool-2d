@@ -1,5 +1,5 @@
 # Pool
-**[Play now](https://pool-arelkair.vercel.app/)**
+[![Play now](https://img.shields.io/badge/play-live_demo-brightgreen?style=flat)](https://pool-arelkair.vercel.app/)
 
 ![Gameplay screenshot](docs/screenshot.png)
 A 2D pool game for the browser, with online 1v1 multiplayer.
