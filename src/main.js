@@ -31,6 +31,7 @@ const hintKey = () => {
 
 async function main() {
   applyStatic();
+  ui.el('city-link').hidden = window.parent !== window;
   app = new Application();
   await app.init({ width: CANVAS_W, height: CANVAS_H, backgroundColor: 0x100e0c, antialias: true, preference: 'webgl' });
   app.ticker.maxFPS = 60;
