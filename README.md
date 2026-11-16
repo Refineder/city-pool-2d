@@ -1,28 +1,33 @@
-# Pool
-[![Play now](https://img.shields.io/badge/play-live_demo-brightgreen?style=flat)](https://pool-arelkair.vercel.app/)
+# Refineder 8-Ball
 
-![Gameplay screenshot](docs/screenshot.png)
-A 2D pool game for the browser, with online 1v1 multiplayer.
-## How to play
-- **Singleplayer**: Free practice.
-- **Multiplayer**: One player creates a game and shares the 4-letter code; the other joins with that code. It runs peer-to-peer over the internet, with no servers or router setup. Turns follow standard 8-ball rules.
-To shoot, drag from the cue ball and release. The further you pull, the more power.
-Available in English and Spanish (Settings > Language).
-## Project Structure
-```
-src/config.js     constants (table, balls, physics)
-src/physics.js    custom billiards engine (collisions, friction, pockets)
-src/scene.js      PixiJS rendering
-src/net.js        peer-to-peer multiplayer (PeerJS)
-src/audio.js      sound effects
-src/ui.js         menu, HUD and dialogs
-src/i18n.js       translations
-src/main.js       game loop, input and turns
-```
-## Development
-```
-npm install
-npm run dev      # start the dev server
-npm test         # run the physics self-test
-npm run build    # production build
-```
+A top-down pool table for the Refineder lounge in [UTECS City](https://utecs.net/city).
+It uses the [original MIT-licensed Pool by Arel Kair](https://github.com/arelkair/pool)
+and retains the original [sound credits](public/sfx/CREDITS.txt).
+
+## Play
+
+Refineder members can select **Billiards** from Games to go to the lounge table.
+Use **Play 8-Ball** at the table. Practice is solo and multiplayer is for two
+players. Create a room and share its four-character code with a teammate.
+Drag from the cue ball and release to shoot. The longer the drag, the stronger
+the shot.
+
+Online matches have an open table after the break, solids and stripes, and
+ball in hand after a foul. The eight ball is spotted if pocketed on the break.
+Pocketing it early or scratching while pocketing it loses the game. Rooms live
+in memory and end when either player leaves. The host's browser and the guest's
+browser both receive the table and score from the room server.
+
+## Run
+
+Use Node.js 24 and `npm ci`. Run `npm test` for cue physics, room rules and
+HTTP/WebSocket admission, and `npm run build` to build the client for
+`/games/pool/`.
+
+Start the room server with `npm start` after building. It listens on port 3001
+unless `PORT` is set. Set `POOL_PUBLIC_ORIGIN` to the city's origin and
+`POOL_ACCESS_URL` to its verified city-session membership route
+(`/api/v1/city/pool/access`). The reverse proxy must forward
+`/games/pool/` and upgrade `/games/pool/ws` at that same origin. The server
+checks membership on each page and asset request, when a socket opens, and
+while it stays connected. `/games/pool/health` serves the process probe.

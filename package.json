@@ -1,22 +1,23 @@
 {
-  "name": "pool",
+  "name": "refineder-city-pool",
   "version": "1.0.0",
-  "description": "A 2D pool game for the browser, with peer-to-peer online 1v1 multiplayer.",
+  "description": "Top-down 8-ball for the Refineder lounge in UTECS.",
   "author": "Arel Kair",
   "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build --base=/games/pool/",
     "preview": "vite preview",
-    "test": "node src/physics.js"
+    "test": "node src/physics.js && node --test server/*.test.js test/*.test.js",
+    "start": "node server/pool-server.js"
   },
   "devDependencies": {
     "vite": "^8.0.12"
   },
   "dependencies": {
-    "peerjs": "^1.5.5",
-    "pixi.js": "^8.19.0"
+    "pixi.js": "^8.19.0",
+    "ws": "8.23.0"
   }
 }
