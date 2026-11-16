@@ -32,11 +32,12 @@ export function rack() {
   const rowGap = BALL_R * Math.sqrt(3) + 0.5;
   const colGap = BALL_R * 2 + 0.5;
 
-  let n = 1;
+  // The eight sits in the center with one solid and one stripe on the rear corners.
+  const numbers = [1, 2, 3, 4, 8, 6, 11, 5, 9, 10, 7, 12, 13, 14, 15];
+  let index = 0;
   for (let row = 0; row < 5; row++) {
     for (let i = 0; i <= row; i++) {
-      balls.push(make(apexX + row * rowGap, apexY + (i - row / 2) * colGap, n));
-      n++;
+      balls.push(make(apexX + row * rowGap, apexY + (i - row / 2) * colGap, numbers[index++]));
     }
   }
   return balls;
@@ -53,7 +54,7 @@ export function allStopped(balls) {
   return balls.every((b) => b.potted || (b.vx === 0 && b.vy === 0));
 }
 
-export function step(balls) {
+export function step(balls, observe) {
   const active = balls.filter((b) => !b.potted);
   const hits = [];
 
@@ -66,8 +67,8 @@ export function step(balls) {
       b.x += b.vx / sub;
       b.y += b.vy / sub;
     }
-    bounceWalls(active, hits);
-    collideBalls(active, hits);
+    bounceWalls(active, hits, observe);
+    collideBalls(active, hits, observe);
   }
 
   for (const b of active) {
@@ -82,7 +83,7 @@ export function step(balls) {
   return { potted: sinkPockets(balls), hits };
 }
 
-function bounceWalls(active, hits) {
+function bounceWalls(active, hits, observe) {
   for (const b of active) {
     let hit = 0;
     if (b.x < MIN_X) {
@@ -104,10 +105,11 @@ function bounceWalls(active, hits) {
       b.vy = -Math.abs(b.vy) * WALL_RESTITUTION;
     }
     if (hit > 1.5) hits.push({ type: 'rail', speed: hit });
+    if (hit > 0) observe?.({ type: 'rail', number: b.number });
   }
 }
 
-function collideBalls(active, hits) {
+function collideBalls(active, hits, observe) {
   const minDist = BALL_R * 2;
   for (let i = 0; i < active.length; i++) {
     for (let j = i + 1; j < active.length; j++) {
@@ -129,8 +131,18 @@ function collideBalls(active, hits) {
       a.vx -= jimp * nx; a.vy -= jimp * ny;
       b.vx += jimp * nx; b.vy += jimp * ny;
       if (rvn > 1.5) hits.push({ type: 'ball', speed: rvn });
+      observe?.({ type: 'ball', first: a.number, second: b.number });
     }
   }
+}
+
+/** Collision-free positions for authoritative ball-in-hand and spotting. */
+export function legalBallPosition(ball, balls, x, y) {
+  return Number.isFinite(x) && Number.isFinite(y) &&
+    x >= MIN_X && x <= MAX_X && y >= MIN_Y && y <= MAX_Y &&
+    POCKETS.every((pocket) => Math.hypot(pocket.x - x, pocket.y - y) >= POCKET_R) &&
+    balls.every((other) => other === ball || other.potted ||
+      Math.hypot(other.x - x, other.y - y) >= BALL_R * 2);
 }
 
 function sinkPockets(balls) {
