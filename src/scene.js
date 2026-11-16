@@ -7,33 +7,47 @@ export function drawTable() {
 
   const wood = new FillGradient({
     type: 'linear', start: { x: 0, y: 0 }, end: { x: 0, y: 1 },
-    colorStops: [{ offset: 0, color: 0x8a5a30 }, { offset: 0.5, color: 0x5c3b1d }, { offset: 1, color: 0x36230f }],
+    colorStops: [{ offset: 0, color: 0x9b6740 }, { offset: 0.48, color: 0x5e381f }, { offset: 1, color: 0x3b2418 }],
     textureSpace: 'local',
   });
   g.roundRect(0, 0, CANVAS_W, CANVAS_H, 16).fill(wood);
   g.roundRect(3, 3, CANVAS_W - 6, CANVAS_H - 6, 13).stroke({ width: 2, color: 0xffe2b0, alpha: 0.18 });
 
-  g.rect(CUSHION - 8, CUSHION - 8, TABLE_W + 16, TABLE_H + 16).fill(0x1b6e3a);
+  g.roundRect(8, 8, CANVAS_W - 16, CANVAS_H - 16, 10).stroke({ width: 1, color: 0x291a12, alpha: 0.8 });
+  g.roundRect(CUSHION - 9, CUSHION - 9, TABLE_W + 18, TABLE_H + 18, 5).fill(0x113f2a);
+  g.roundRect(CUSHION - 9, CUSHION - 9, TABLE_W + 18, TABLE_H + 18, 5)
+    .stroke({ width: 2, color: 0xa77746, alpha: 0.65 });
 
   const cloth = new FillGradient({
     type: 'radial',
     innerCenter: { x: 0.5, y: 0.42 }, innerRadius: 0.04,
     outerCenter: { x: 0.5, y: 0.5 }, outerRadius: 0.66,
-    colorStops: [{ offset: 0, color: 0x24c55c }, { offset: 0.7, color: 0x12953f }, { offset: 1, color: 0x0a6b2c }],
+    colorStops: [{ offset: 0, color: 0x208446 }, { offset: 0.7, color: 0x176f3b }, { offset: 1, color: 0x125735 }],
     textureSpace: 'local',
   });
   g.rect(CUSHION, CUSHION, TABLE_W, TABLE_H).fill(cloth);
   g.rect(CUSHION, CUSHION, TABLE_W, TABLE_H).stroke({ width: 8, color: 0x000000, alpha: 0.18 });
   g.rect(CUSHION + 2, CUSHION + 2, TABLE_W - 4, TABLE_H - 4).stroke({ width: 2, color: 0x000000, alpha: 0.12 });
 
+  for (let row = 1; row < 75; row++) {
+    const y = CUSHION + row * TABLE_H / 75;
+    g.moveTo(CUSHION + 3, y).lineTo(CUSHION + TABLE_W - 3, y)
+      .stroke({ width: 1, color: row % 2 ? 0xffffff : 0x000000, alpha: 0.012 });
+  }
+  for (const x of [CUSHION + TABLE_W * 0.25, CUSHION + TABLE_W * 0.72]) {
+    g.circle(x, CUSHION + TABLE_H / 2, 3).fill({ color: 0xffffff, alpha: 0.19 });
+  }
+
   const dots = [];
-  for (const f of [0.25, 0.5, 0.75]) {
+  for (const f of [0.125, 0.25, 0.375, 0.625, 0.75, 0.875]) {
     dots.push([CUSHION + TABLE_W * f, CUSHION / 2], [CUSHION + TABLE_W * f, CANVAS_H - CUSHION / 2]);
   }
-  dots.push([CUSHION / 2, CUSHION + TABLE_H / 2], [CANVAS_W - CUSHION / 2, CUSHION + TABLE_H / 2]);
+  for (const f of [0.25, 0.5, 0.75]) {
+    dots.push([CUSHION / 2, CUSHION + TABLE_H * f], [CANVAS_W - CUSHION / 2, CUSHION + TABLE_H * f]);
+  }
   for (const [x, y] of dots) {
-    g.circle(x, y, 3.5).fill(0xfff0cf);
-    g.circle(x, y, 3.5).stroke({ width: 1, color: 0x4a3a1f, alpha: 0.5 });
+    g.poly([x, y - 4.5, x + 4.5, y, x, y + 4.5, x - 4.5, y])
+      .fill(0xe7cf9f).stroke({ width: 1, color: 0x352215, alpha: 0.55 });
   }
 
   for (const p of pocketPositions()) {
@@ -133,10 +147,18 @@ export function buildBallVisual(ball) {
 
 export function drawAim(g, cue, mx, my, power = 1) {
   g.clear();
-  g.moveTo(cue.x, cue.y).lineTo(mx, my).stroke({ width: 1, color: 0xffffff, alpha: 0.25 });
-
   const len = Math.hypot(cue.x - mx, cue.y - my) || 1;
   let dx = (cue.x - mx) / len, dy = (cue.y - my) / len;
+  const start = BALL_R + 11 + power * 70;
+  const cuePoint = (distance) => [cue.x - dx * distance, cue.y - dy * distance];
+  g.moveTo(...cuePoint(start + 80)).lineTo(...cuePoint(start + 183))
+    .stroke({ width: 9, color: 0x1d1712, cap: 'round' });
+  g.moveTo(...cuePoint(start + 55)).lineTo(...cuePoint(start + 136))
+    .stroke({ width: 6, color: 0x8c5439, cap: 'round' });
+  g.moveTo(...cuePoint(start)).lineTo(...cuePoint(start + 61))
+    .stroke({ width: 4, color: 0xe7cd96, cap: 'round' });
+  g.moveTo(...cuePoint(start)).lineTo(...cuePoint(start + 5))
+    .stroke({ width: 4, color: 0xa6d5df, cap: 'round' });
   let x = cue.x, y = cue.y, remaining = 50 + power * 260;
   const minX = CUSHION + BALL_R, maxX = CUSHION + TABLE_W - BALL_R;
   const minY = CUSHION + BALL_R, maxY = CUSHION + TABLE_H - BALL_R;
@@ -158,14 +180,5 @@ export function drawAim(g, cue, mx, my, power = 1) {
     if (Math.abs(ny - minY) < 0.6 || Math.abs(ny - maxY) < 0.6) dy = -dy;
     x = nx; y = ny;
   }
-  g.stroke({ width: 1, color: 0xff5050, alpha: 0.3 });
-}
-
-export function drawPower(g, label, frac) {
-  const x = 24, y = CANVAS_H - 22, w = 200, h = 12;
-  const r = Math.round(255 * frac), gr = Math.round(255 * (1 - frac));
-  g.clear();
-  g.rect(x, y, w, h).fill({ color: 0x000000, alpha: 0.5 }).stroke({ width: 1, color: 0xffffff, alpha: 0.6 });
-  g.rect(x + 1, y + 1, (w - 2) * frac, h - 2).fill((r << 16) | (gr << 8));
-  label.visible = true;
+  g.stroke({ width: 1, color: 0xf6f4d4, alpha: 0.66 });
 }

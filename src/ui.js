@@ -3,136 +3,118 @@ import { BALL_COLORS } from './config.js';
 
 export const el = (id) => document.getElementById(id);
 
-export function showScreen(id) {
-  document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
-  el(id).classList.add('active');
+export function showScreen(id, focus = true) {
+  document.querySelectorAll('.screen').forEach((screen) => {
+    screen.hidden = screen.id !== id;
+    screen.classList.toggle('active', screen.id === id);
+  });
+  if (focus) el(id).querySelector('input, button')?.focus();
 }
 
-export function toast(msg) {
+export function toast(key) {
   const node = el('toast');
-  node.textContent = msg;
+  node.textContent = t(key);
   node.classList.add('show');
-  clearTimeout(node._timer);
-  node._timer = setTimeout(() => node.classList.remove('show'), 2600);
+  clearTimeout(node.toastTimer);
+  node.toastTimer = setTimeout(() => {
+    node.classList.remove('show');
+    node.textContent = '';
+  }, 4200);
 }
 
-export function banner(text) {
-  const b = el('banner');
-  b.querySelector('.txt').textContent = text;
-  b.classList.remove('show');
-  void b.offsetWidth;
-  b.classList.add('show');
-}
-
-export function clearBanner() {
-  el('banner').classList.remove('show');
+export function banner(key) {
+  const node = el('banner');
+  node.textContent = t(key);
+  node.classList.remove('show');
+  void node.offsetWidth;
+  node.classList.add('show');
 }
 
 export function enterGame() {
-  el('menu').classList.add('hidden');
-  el('hud').classList.add('show');
-  el('hint').classList.remove('gone');
+  el('menu').hidden = true;
+  el('hud').hidden = false;
+  el('app').inert = false;
+  el('app').querySelector('canvas').focus({ preventScroll: true });
 }
 
 export function backToMenu() {
-  el('menu').classList.remove('hidden');
-  el('hud').classList.remove('show');
+  el('confirm-modal').close();
+  el('menu').hidden = false;
+  el('hud').hidden = true;
+  el('hint').hidden = true;
+  el('balls-left').hidden = true;
+  el('app').inert = true;
+  el('banner').classList.remove('show');
   showScreen('screen-main');
 }
 
-export function hideHint() {
-  el('hint').classList.add('gone');
+export function updateTurn(key, mine) {
+  const node = el('hud-turn');
+  setText(node, key ? t(key) : '');
+  node.hidden = !key;
+  node.dataset.mine = mine;
 }
 
-export function showHint() {
-  el('hint').classList.remove('gone');
+export function setText(node, text) {
+  if (node.textContent !== text) node.textContent = text;
 }
 
-export function updateHud(shots, potted, total) {
-  el('hud-shots').textContent = shots;
-  el('hud-potted').textContent = `${potted}/${total}`;
+export function setStatus(id, key, error = false) {
+  const node = el(id);
+  node.dataset.status = key;
+  setText(node, key ? t(key) : '');
+  node.classList.toggle('error', error);
 }
 
-export function updateTurn(mode, mine) {
-  const e = el('hud-turn');
-  if (mode === 'solo') {
-    e.style.display = 'none';
-    return;
+export function translateStatuses() {
+  for (const id of ['host-status', 'join-status']) {
+    const node = el(id);
+    setStatus(id, node.dataset.status ?? '', node.classList.contains('error'));
   }
-  e.style.display = '';
-  e.textContent = mine ? t('you') : t('rival');
-  e.style.background = mine ? 'rgba(70,220,140,.28)' : 'rgba(220,90,90,.28)';
 }
 
-export function updateGroup(mode, group) {
-  const g = el('hud-group');
-  if (mode === 'solo' || !group) {
-    g.style.display = 'none';
-    return;
-  }
-  g.style.display = '';
-  g.textContent = group === 'stripes' ? t('stripes') : t('solids');
+export function setMuteLabel(muted) {
+  const node = el('btn-mute');
+  setText(node, t(muted ? 'unmute' : 'mute'));
+  node.setAttribute('aria-pressed', String(muted));
 }
 
-export function setStatus(id, text, error = false) {
-  const s = el(id);
-  s.textContent = text;
-  s.classList.toggle('error', error);
-}
-
-export function setMuteIcon(muted) {
-  el('btn-mute').textContent = muted ? '🔇' : '🔊';
-}
-
-export function updateBallsLeft(mode, balls, groups, myPlayer) {
+export function updateBallsLeft(mode, balls, groups, seat, lang) {
   const box = el('balls-left');
-  if (mode === 'solo' || !balls) {
-    box.classList.remove('show');
-    return;
-  }
-  box.classList.add('show');
-  box.innerHTML = '';
+  box.hidden = mode !== 'online' || !groups[seat];
+  if (box.hidden) return;
+  const signature = `${lang}/${groups[seat]}/${balls.filter((ball) => ball.potted).map((ball) => ball.number).join(',')}`;
+  if (box.dataset.balls === signature) return;
+  box.dataset.balls = signature;
+  box.replaceChildren();
 
-  for (const p of [myPlayer, myPlayer === 1 ? 2 : 1]) {
-    const group = groups[p];
-    if (!group) continue;
-
-    const nums = group === 'solids' ? [1, 2, 3, 4, 5, 6, 7] : [9, 10, 11, 12, 13, 14, 15];
+  for (const player of [seat, seat === 1 ? 2 : 1]) {
+    const group = groups[player];
     const row = document.createElement('div');
     row.className = 'row';
+    const label = document.createElement('span');
+    label.className = 'lbl';
+    const groupBalls = balls.filter((ball) => group === 'solids' ? ball.number >= 1 && ball.number <= 7 : ball.number >= 9);
+    label.textContent = `${t(player === seat ? 'you' : 'rival')} · ${groupBalls.filter((ball) => !ball.potted).length}`;
+    row.appendChild(label);
 
-    const lbl = document.createElement('span');
-    lbl.className = 'lbl';
-    lbl.textContent = p === myPlayer ? t('you') : t('rival');
-    row.appendChild(lbl);
-
-    for (const n of nums) {
-      const b = balls.find((x) => x.number === n);
+    for (const ball of groupBalls) {
       const dot = document.createElement('span');
-      dot.className = 'dot' + (!b || b.potted ? ' gone' : '');
-      dot.style.background = '#' + BALL_COLORS[n].toString(16).padStart(6, '0');
+      dot.className = ball.potted ? 'dot gone' : 'dot';
+      dot.style.background = `#${BALL_COLORS[ball.number].toString(16).padStart(6, '0')}`;
+      dot.setAttribute('aria-hidden', 'true');
       row.appendChild(dot);
     }
     box.appendChild(row);
   }
 }
 
-function modal(modalId, acceptId, rejectId) {
+export function confirm(key) {
+  const dialog = el('confirm-modal');
+  el('confirm-text').textContent = t(key);
+  dialog.returnValue = '';
+  dialog.showModal();
   return new Promise((resolve) => {
-    const m = el(modalId), a = el(acceptId), r = el(rejectId);
-    m.classList.add('show');
-    const done = (v) => {
-      m.classList.remove('show');
-      a.onclick = null;
-      r.onclick = null;
-      resolve(v);
-    };
-    a.onclick = () => done(true);
-    r.onclick = () => done(false);
+    dialog.addEventListener('close', () => resolve(dialog.returnValue === 'accept'), { once: true });
   });
-}
-
-export function confirm(text) {
-  el('confirm-text').textContent = text;
-  return modal('confirm-modal', 'confirm-accept', 'confirm-reject');
 }

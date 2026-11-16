@@ -1,49 +1,51 @@
-import Peer from 'peerjs';
+const ROOM_CODE = /^[A-Z0-9]{4}$/;
+const HANDSHAKE_TIMEOUT = 12_000;
 
-const PREFIX = 'pool-arelkair-';
-const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-
-function randomCode() {
-  let s = '';
-  for (let i = 0; i < 4; i++) s += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
-  return s;
+export function validCode(code) {
+  return ROOM_CODE.test(code);
 }
 
-export function host(handlers) {
-  const code = randomCode();
-  const peer = new Peer(PREFIX + code);
-  let conn = null;
+export function roomUrl(location) {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${location.host}/games/pool/ws`;
+}
 
-  peer.on('open', () => handlers.ready?.(code));
-  peer.on('error', (e) => handlers.error?.(e));
-  peer.on('connection', (c) => {
-    conn = c;
-    c.on('open', () => handlers.joined?.());
-    c.on('data', (d) => handlers.message?.(d));
-    c.on('close', () => handlers.left?.());
+export function connectRoom(request, handlers) {
+  const socket = new WebSocket(roomUrl(window.location));
+  let closed = false;
+  let admitted = false;
+  const timer = window.setTimeout(() => disconnect(handlers.closed), HANDSHAKE_TIMEOUT);
+
+  function disconnect(onClose) {
+    if (closed) return;
+    closed = true;
+    window.clearTimeout(timer);
+    socket.close();
+    onClose?.();
+  }
+
+  socket.addEventListener('open', () => socket.send(JSON.stringify(request)));
+  socket.addEventListener('message', ({ data }) => {
+    if (closed || typeof data !== 'string') return;
+    let message;
+    try { message = JSON.parse(data); } catch { return; }
+    if (!message || typeof message.type !== 'string') return;
+    if (message.type === 'created' || message.type === 'start') {
+      admitted = true;
+      window.clearTimeout(timer);
+    }
+    handlers.message(message);
+  });
+  socket.addEventListener('close', ({ code }) => {
+    disconnect(() => handlers.closed(code, admitted));
   });
 
   return {
-    send: (o) => { if (conn && conn.open) conn.send(o); },
-    close: () => { try { conn?.close(); peer.destroy(); } catch {} },
-  };
-}
-
-export function join(code, handlers) {
-  const peer = new Peer();
-  let conn = null;
-
-  peer.on('open', () => {
-    conn = peer.connect(PREFIX + code.trim().toUpperCase());
-    conn.on('open', () => handlers.connected?.());
-    conn.on('data', (d) => handlers.message?.(d));
-    conn.on('close', () => handlers.left?.());
-    conn.on('error', (e) => handlers.error?.(e));
-  });
-  peer.on('error', (e) => handlers.error?.(e));
-
-  return {
-    send: (o) => { if (conn && conn.open) conn.send(o); },
-    close: () => { try { conn?.close(); peer.destroy(); } catch {} },
+    send(message) {
+      if (closed || !admitted || socket.readyState !== WebSocket.OPEN) return false;
+      socket.send(JSON.stringify(message));
+      return true;
+    },
+    close() { disconnect(); },
   };
 }
