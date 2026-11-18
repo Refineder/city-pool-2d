@@ -32,8 +32,9 @@ const hintKey = () => {
 async function main() {
   applyStatic();
   ui.el('city-link').hidden = window.parent !== window;
+  ui.el('btn-help').addEventListener('click', () => ui.el('pool-help').showModal());
   app = new Application();
-  await app.init({ width: CANVAS_W, height: CANVAS_H, backgroundColor: 0x100e0c, antialias: true, preference: 'webgl' });
+  await app.init({ width: CANVAS_W, height: CANVAS_H, backgroundAlpha: 0, antialias: true, preference: 'webgl' });
   app.ticker.maxFPS = 60;
   app.canvas.tabIndex = 0;
   app.canvas.setAttribute('aria-describedby', 'hint keyboard-help');
@@ -68,7 +69,6 @@ function setupRack() {
     shots: 0, settled: true, groups: { 1: null, 2: null }, gameOver: false, winner: null, ballInHand: false,
   });
   input?.reset();
-  ui.el('banner').classList.remove('show');
   if (game.mode) refreshHud();
 }
 
@@ -110,7 +110,7 @@ function practiceLoop() {
       game.settled = true;
       game.ballInHand = game.cue.potted;
       game.gameOver = game.balls.every((ball) => ball.number === 0 || ball.potted);
-      if (game.gameOver) { ui.banner('soloDone'); audio.win(); }
+      if (game.gameOver) audio.win();
       refreshHud();
       return;
     }
@@ -121,12 +121,17 @@ function practiceLoop() {
 function refreshHud() {
   const mine = game.turn === game.seat;
   const group = game.groups[game.seat];
-  const turnKey = game.gameOver ? (game.mode === 'solo' ? 'soloDone' : game.winner === game.seat ? 'won' : 'lost')
-    : game.mode === 'online' && !game.ready ? 'connecting'
-    : !game.settled ? 'shooting'
-    : mine && game.ballInHand ? 'ballInHand'
-    : game.mode === 'online' ? (mine ? 'yourTurn' : 'rivalTurn') : '';
-  ui.updateTurn(turnKey, mine && game.ready);
+  if (!game.mode) ui.updateTurn('', '', '');
+  else if (game.gameOver) {
+    const key = game.mode === 'solo' ? 'soloDone' : game.winner === game.seat ? 'won' : 'lost';
+    ui.updateTurn(key, key === 'lost' ? 'rival' : 'complete', '');
+  } else if (!game.ready) ui.updateTurn('connecting', 'neutral', '');
+  else if (!game.settled) ui.updateTurn('shooting', 'neutral', '');
+  else ui.updateTurn(
+    game.mode === 'solo' ? 'practiceTable' : mine ? 'yourTurn' : 'rivalTurn',
+    mine ? 'mine' : 'rival',
+    game.ballInHand && mine ? 'ballInHand' : '',
+  );
   const groupNode = ui.el('hud-group');
   groupNode.hidden = game.mode !== 'online';
   ui.setText(groupNode, t(group ?? 'openTable'));
@@ -253,9 +258,7 @@ function applyState(state) {
   }
   if (game.ballInHand && !hadBallInHand) input.reset();
   if (game.gameOver && !wasOver) {
-    const won = game.winner === game.seat;
-    ui.banner(won ? 'won' : 'lost');
-    if (won) audio.win();
+    if (game.winner === game.seat) audio.win();
     else audio.lose();
   } else if ((!wasReady || game.turn !== previousTurn) && game.turn === game.seat) {
     audio.turnChime();

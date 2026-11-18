@@ -2,6 +2,7 @@ const strings = {
   en: {
     title: '8-Ball Pool', intro: 'Practice your break or play a friend online.', city: 'Back to the city',
     language: 'Language', solo: 'Practice', multiplayer: 'Play online', back: 'Back',
+    howToPlay: 'How to play', closeHelp: 'Close rules', controls: 'Controls', practiceTable: 'Free practice',
     create: 'Create room', join: 'Join room', connect: 'Join game',
     restart: 'New rack', rematch: 'Play again', menu: 'Menu', mute: 'Mute', unmute: 'Unmute',
     hostHint: 'Share this room code with another city member.', joinHint: 'Room code',
@@ -23,10 +24,17 @@ const strings = {
     serverBusy: 'Online pool is busy. Try again in a moment.',
     moveRejected: 'That move is unavailable right now.',
     renderError: 'The pool table could not load in this browser.',
+    helpKeyboard: 'Left and right aim. Up and down set power. Space shoots. When you have ball in hand, the arrows move the white ball and Space places it.',
+    helpPractice: 'Pocket all 15 balls in any order. If you sink the white ball, place it back on the table.',
+    helpBreak: 'On the break, pocket a ball or send four object balls to the rails. If the 8 drops on the break, it goes back on the table.',
+    helpGroups: 'After the break, the first legal pot sets solids and stripes. Legally pocket one of yours to keep the turn.',
+    helpFouls: 'Once groups are set, hit your group first. After contact, a ball must be pocketed or reach a rail. A foul, including sinking the white ball, gives the other player ball in hand.',
+    helpEight: 'Clear your group, then hit the 8 first and pocket it to win. Pocketing it early or on a foul loses the rack.',
   },
   ar: {
     title: 'بلياردو ٨ كرات', intro: 'اتدرّب على ضربة البداية أو العب مع صاحبك أونلاين.', city: 'ارجع للمدينة',
     language: 'اللغة', solo: 'تدريب', multiplayer: 'العب أونلاين', back: 'رجوع',
+    howToPlay: 'طريقة اللعب', closeHelp: 'اقفل شرح اللعبة', controls: 'التحكّم', practiceTable: 'تدريب حر',
     create: 'أنشئ غرفة', join: 'انضم لغرفة', connect: 'ادخل اللعبة',
     restart: 'رتّب الكرات من جديد', rematch: 'العب مرة تانية', menu: 'القائمة', mute: 'اكتم الصوت', unmute: 'شغّل الصوت',
     hostHint: 'شارك رمز الغرفة مع أي زول في المدينة.', joinHint: 'رمز الغرفة',
@@ -48,6 +56,12 @@ const strings = {
     serverBusy: 'اللعب أونلاين مشغول. حاول تاني بعد شوية.',
     moveRejected: 'الحركة دي ما متاحة هسع.',
     renderError: 'الطاولة ما قدرت تفتح في المتصفح دا.',
+    helpKeyboard: 'يمين وشمال للتوجيه، فوق وتحت للقوة، والمسافة للضرب. لو الكرة في يدك، حرّك البيضاء بالأسهم وثبّتها بالمسافة.',
+    helpPractice: 'دخّل الـ١٥ كرة بأي ترتيب. لو البيضاء دخلت في جيب، رجّعها لمكان فاضي في الطاولة.',
+    helpBreak: 'في ضربة البداية، دخّل كرة أو خلّي أربع كرات غير البيضاء تلمس الحواف. لو كرة ٨ دخلت في ضربة البداية، بترجع للطاولة.',
+    helpGroups: 'أول كرة تدخل بضربة صحيحة بعد البداية بتحدّد السادة والمخططة. لو دخّلت من مجموعتك بضربة صحيحة، بتواصل اللعب.',
+    helpFouls: 'المس مجموعتك أول بعد تحديدها. بعدها لازم كرة تدخل في جيب أو تلمس الحافة. لو عملت مخالفة، زي إدخال البيضاء، الخصم بيحطّها في مكان فاضي.',
+    helpEight: 'بعد ما تخلّص كرات مجموعتك، المس كرة ٨ أول ودخّلها عشان تفوز. لو دخّلتها بدري أو بمخالفة، بتخسر الجولة.',
   },
 };
 
@@ -71,5 +85,6 @@ export function applyStatic() {
   document.title = t('title');
   document.querySelectorAll('[data-i18n]').forEach((node) => { node.textContent = t(node.dataset.i18n); });
   document.querySelectorAll('[data-i18n-label]').forEach((node) => node.setAttribute('aria-label', t(node.dataset.i18nLabel)));
+  document.querySelectorAll('[data-i18n-title]').forEach((node) => { node.title = t(node.dataset.i18nTitle); });
   document.querySelectorAll('[data-lang]').forEach((button) => button.setAttribute('aria-pressed', button.dataset.lang === lang));
 }

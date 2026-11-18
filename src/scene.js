@@ -5,24 +5,24 @@ import { pocketPositions } from './physics.js';
 export function drawTable() {
   const g = new Graphics();
 
-  const wood = new FillGradient({
+  const frame = new FillGradient({
     type: 'linear', start: { x: 0, y: 0 }, end: { x: 0, y: 1 },
-    colorStops: [{ offset: 0, color: 0x9b6740 }, { offset: 0.48, color: 0x5e381f }, { offset: 1, color: 0x3b2418 }],
+    colorStops: [{ offset: 0, color: 0x26374c }, { offset: 0.48, color: 0x17263b }, { offset: 1, color: 0x0c1527 }],
     textureSpace: 'local',
   });
-  g.roundRect(0, 0, CANVAS_W, CANVAS_H, 16).fill(wood);
-  g.roundRect(3, 3, CANVAS_W - 6, CANVAS_H - 6, 13).stroke({ width: 2, color: 0xffe2b0, alpha: 0.18 });
+  g.roundRect(0, 0, CANVAS_W, CANVAS_H, 16).fill(frame);
+  g.roundRect(3, 3, CANVAS_W - 6, CANVAS_H - 6, 13).stroke({ width: 2, color: 0x7d96ad, alpha: 0.35 });
 
-  g.roundRect(8, 8, CANVAS_W - 16, CANVAS_H - 16, 10).stroke({ width: 1, color: 0x291a12, alpha: 0.8 });
-  g.roundRect(CUSHION - 9, CUSHION - 9, TABLE_W + 18, TABLE_H + 18, 5).fill(0x113f2a);
+  g.roundRect(8, 8, CANVAS_W - 16, CANVAS_H - 16, 10).stroke({ width: 1, color: 0x06101b, alpha: 0.85 });
+  g.roundRect(CUSHION - 9, CUSHION - 9, TABLE_W + 18, TABLE_H + 18, 5).fill(0x103e40);
   g.roundRect(CUSHION - 9, CUSHION - 9, TABLE_W + 18, TABLE_H + 18, 5)
-    .stroke({ width: 2, color: 0xa77746, alpha: 0.65 });
+    .stroke({ width: 2, color: 0x71958b, alpha: 0.47 });
 
   const cloth = new FillGradient({
     type: 'radial',
     innerCenter: { x: 0.5, y: 0.42 }, innerRadius: 0.04,
     outerCenter: { x: 0.5, y: 0.5 }, outerRadius: 0.66,
-    colorStops: [{ offset: 0, color: 0x208446 }, { offset: 0.7, color: 0x176f3b }, { offset: 1, color: 0x125735 }],
+    colorStops: [{ offset: 0, color: 0x266a64 }, { offset: 0.68, color: 0x1b5556 }, { offset: 1, color: 0x113a45 }],
     textureSpace: 'local',
   });
   g.rect(CUSHION, CUSHION, TABLE_W, TABLE_H).fill(cloth);
@@ -47,16 +47,16 @@ export function drawTable() {
   }
   for (const [x, y] of dots) {
     g.poly([x, y - 4.5, x + 4.5, y, x, y + 4.5, x - 4.5, y])
-      .fill(0xe7cf9f).stroke({ width: 1, color: 0x352215, alpha: 0.55 });
+      .fill(0xdaccaa).stroke({ width: 1, color: 0x0d1825, alpha: 0.65 });
   }
 
   for (const p of pocketPositions()) {
     g.circle(p.x, p.y, POCKET_R + 6).fill({ color: 0x000000, alpha: 0.4 });
-    g.circle(p.x, p.y, POCKET_R + 3).fill(0x4a3a1f);
-    g.circle(p.x, p.y, POCKET_R + 3).stroke({ width: 2, color: 0xd9b15a, alpha: 0.7 });
+    g.circle(p.x, p.y, POCKET_R + 3).fill(0x273440);
+    g.circle(p.x, p.y, POCKET_R + 3).stroke({ width: 2, color: 0x9a8868, alpha: 0.74 });
     const hole = new FillGradient({
       type: 'radial', innerCenter: { x: 0.5, y: 0.4 }, innerRadius: 0, outerCenter: { x: 0.5, y: 0.5 }, outerRadius: 0.5,
-      colorStops: [{ offset: 0, color: 0x101010 }, { offset: 1, color: 0x000000 }], textureSpace: 'local',
+      colorStops: [{ offset: 0, color: 0x080e16 }, { offset: 1, color: 0x020509 }], textureSpace: 'local',
     });
     g.circle(p.x, p.y, POCKET_R).fill(hole);
   }

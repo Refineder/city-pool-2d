@@ -22,14 +22,6 @@ export function toast(key) {
   }, 4200);
 }
 
-export function banner(key) {
-  const node = el('banner');
-  node.textContent = t(key);
-  node.classList.remove('show');
-  void node.offsetWidth;
-  node.classList.add('show');
-}
-
 export function enterGame() {
   el('menu').hidden = true;
   el('hud').hidden = false;
@@ -44,15 +36,17 @@ export function backToMenu() {
   el('hint').hidden = true;
   el('balls-left').hidden = true;
   el('app').inert = true;
-  el('banner').classList.remove('show');
   showScreen('screen-main');
 }
 
-export function updateTurn(key, mine) {
-  const node = el('hud-turn');
-  setText(node, key ? t(key) : '');
-  node.hidden = !key;
-  node.dataset.mine = mine;
+export function updateTurn(key, tone, detailKey) {
+  const status = el('turn-status');
+  const detail = el('turn-detail');
+  setText(el('hud-turn'), key ? t(key) : '');
+  setText(detail, detailKey ? t(detailKey) : '');
+  if (detail.hidden === Boolean(detailKey)) detail.hidden = !detailKey;
+  if (status.dataset.tone !== tone) status.dataset.tone = tone;
+  if (status.hidden === Boolean(key)) status.hidden = !key;
 }
 
 export function setText(node, text) {
